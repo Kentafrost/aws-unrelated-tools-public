@@ -3,25 +3,26 @@ import time
 import win32com.client
 import logging
 
-# disable or enable task scheduler
-disable_chk = True  
-
-# target task name. change this in cases
-target_task_name = "CreateFolderTask"
+disable_chk = True  # disable or enable
+target_task_name = "CreateFolderTask"  # target task name
 
 # current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 current_time = time.strftime("%Y%m%d_%H%M%S")
 
+# connect to the task scheduler
 scheduler = win32com.client.Dispatch('Schedule.Service')
 scheduler.Connect()
 root_folder = scheduler.GetFolder('\\')
 tasks = root_folder.GetTasks(0)
 tasks_names = [task.Name for task in tasks]
 
-logging.basicConfig(filename=f"{current_dir}\\log\\{current_time}\\task.log", 
-                    level=logging.INFO, 
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+# set the log configuration
+logging.basicConfig(
+    filename=f"{current_dir}\\log\\{current_time}\\task.log", 
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s'
+    )
 
 def disable_task_scheduler(tasks_name):
 
@@ -29,7 +30,8 @@ def disable_task_scheduler(tasks_name):
     task.Enabled = False
     root_folder.RegisterTaskDefinition(tasks_name, task.Definition, 6, None, None, 3, None)
     logging.info(f"Disabled Task: '{tasks_name}'")
-    
+
+
 def enable_task_scheduler(tasks_name):
     
     task = root_folder.GetTask(tasks_name)
@@ -42,13 +44,13 @@ if __name__ == "__main__":
     
     if target_task_name not in tasks_names:
         logging.error(f"Task '{target_task_name}' not found.")
-    else:
-        for tasks_name in tasks_names:
-            if tasks_name == target_task_name:
-                if disable_chk == True:
-                    disable_task_scheduler(tasks_name)
-                else:
-                    enable_task_scheduler(tasks_name)
-                break
-        logging.info("Task scheduler switch operation completed.")
-        logging.shutdown()
+        os._exit(1)
+    for tasks_name in tasks_names:
+        if tasks_name == target_task_name:
+            if disable_chk == True:
+                disable_task_scheduler(tasks_name)
+            else:
+                enable_task_scheduler(tasks_name)
+            break
+    logging.info("Task scheduler switch operation completed.")
+    logging.shutdown()

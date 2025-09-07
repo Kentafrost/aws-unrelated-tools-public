@@ -19,8 +19,11 @@ for tasks_name in tasks_names:
 if not exist_chk == True:
     task_def = scheduler.NewTask(0)
     task_def.RegistrationInfo.Description = "CreateFolder Task"
+    
+    parent_dir = os.path.dirname(os.path.abspath(__file__))
+    script_path = os.path.join(parent_dir, 'create_folder', 'main.py')
 
-    task_def.Actions.Create(0).Path = r"G:\\My Drive\\IT_Learning\\Git\\tools\\Create_Folder\\main.py"
+    task_def.Actions.Create(0).Path = script_path
     task_def.Settings.Enabled = True
     task_def.Settings.StopIfGoingOnBatteries = False
 
