@@ -1,0 +1,6 @@
+・Script to delete gmails with certain words.
+・PHP script to create some HTML files with some data from table in Database or csv file, then
+put into S3 bucket.
+
+・List up all tags in my google account.
+・List up all titles and pictures in several pages in one website, into one csv file.
