@@ -61,3 +61,6 @@ ssm_param_update/ssm_parameters.csv
 google_bookmark/chrome_bookmarks_export.csv
 plan.txt
 secret_path.py
+# VS Code workspace settings
+.vscode/
+
