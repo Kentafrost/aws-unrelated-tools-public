@@ -1,2 +1,2 @@
-flg_filepath=n
+flg_filepath=y
 remote_chk=n

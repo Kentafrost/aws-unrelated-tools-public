@@ -1,3 +1,4 @@
+# This script is for deleting unnecessary log files
 import logging
 import os, sys
 import datetime

@@ -30,6 +30,8 @@ def main(sheet_name, workbook, remote_chk):
     data = sheet.get_all_values()
     df = pd.DataFrame(data)
     extension = ".mp4"
+    
+    move_file_count = 0
 
     for index, row in df.iterrows():
         if remote_chk == "y":
@@ -45,7 +47,7 @@ def main(sheet_name, workbook, remote_chk):
             print(f"Creating local folder: {destination_folder}")
 
             upload_local.create_folder(destination_folder)
-            result = upload_local.move_to_folder(destination_folder, chara_name, extension)
+            result = upload_local.move_to_folder(destination_folder, chara_name, extension, sheet_name)
             common_tool.delete_path(destination_folder) # to delete unnecessary folder
 
             # case 2: google drive
@@ -86,7 +88,7 @@ def main(sheet_name, workbook, remote_chk):
 
 
 def parallel_process_sheet(sheet):
-    
+
     result = main(sheet, workbook, remote_chk)
     logging.info(f"Processing {sheet} is complete.")
     
@@ -128,20 +130,22 @@ if __name__ == "__main__":
     # make list with all sheet names
     for sheet in sheets:
         sheet_name_list.append(sheet.title)
-    print(sheet_name_list)
-    
+    logging.info(f"Sheet names: {sheet_name_list}")
+
     msg_list = []
     folder_list = []
 
     #for sheet in sheet_name_list:
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        result = list(executor.map(parallel_process_sheet, sheet_name_list))
+        result  = list(executor.map(parallel_process_sheet, sheet_name_list))
         # Get the result from the future
         logging.info(f"Processing sheets in parallel.")
         
+    logging.info(f"Processing results: {result}")
+    
     msg_list.extend(r[0] for r in result)
     folder_list.extend(r[1] for r in result)
-            
+    
     print(f"Processing results: {msg_list}")
     
     # save files path in google spreadsheet
@@ -160,7 +164,6 @@ if __name__ == "__main__":
                 print(f"Error: {e}")
                 logging.error(f"Error: {e}")
             
-            print(folder_list[i])
             common_tool.listup_all_files(folder_list[i], sheet)
             i = i + 1
     

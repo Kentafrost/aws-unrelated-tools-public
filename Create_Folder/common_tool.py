@@ -1,16 +1,9 @@
 import shutil
-import gspread
 import os, re, logging
-import smtplib
-
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-import boto3
 import pandas as pd
 import time
 import logging
+import subprocess
 
 def get_chara_name_between(chara_name, pattern):
     
@@ -143,6 +136,10 @@ def listup_all_files(folder_path, sheet):
                 
                 if files != None:
                     for file in files:
+                        # check duration of silence
+                        if file.endswith(".mp4"):
+                            delete_if_silent(f"{file_path}\\{file}")
+
                         print(f"{file_path}\\{file}")
                         data_list.append([file_path, file])
             else:
@@ -156,3 +153,43 @@ def listup_all_files(folder_path, sheet):
     logging.info(f"Write down into a sheet in Google spreadsheet: {df}")
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
     logging.info(f"List up all files in {folder_path} and write to {sheet.title} in google spreadsheet.")
+    
+
+def get_silence_duration(video_path):
+    cmd = [
+        "ffmpeg",
+        "-i", video_path,
+        "-af", "silencedetect=n=-30dB:d=1",
+        "-f", "null",
+        "-"
+    ]
+    result = subprocess.run(cmd, stderr=subprocess.PIPE, text=True)
+    output = result.stderr
+
+    total_silence = 0.0
+    start_times = []
+    end_times = []
+
+    for line in output.splitlines():
+        if "silence_start" in line:
+            start = float(line.split("silence_start: ")[1])
+            start_times.append(start)
+        elif "silence_end" in line:
+            end = float(line.split("silence_end: ")[1].split(" |")[0])
+            end_times.append(end)
+
+    for start, end in zip(start_times, end_times):
+        total_silence += end - start
+
+    return total_silence
+
+# if videos are silent for more than 10 minutes, delete them
+def delete_if_silent(video_path, threshold=600):
+    silence_duration = get_silence_duration(video_path)
+    print(f"{video_path}: {silence_duration:.2f} seconds of silence")
+    if silence_duration > threshold:
+        os.remove(video_path)
+        print(f"Deleted: {video_path}")
+        logging.info(f"Deleted because silence duration exceeded threshold: {video_path}")
+    else:
+        logging.info(f"Kept because silence duration did not exceed threshold: {video_path}")

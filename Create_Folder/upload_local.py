@@ -35,7 +35,7 @@ def folder_path_create(sheet_name, chara_name, base_folder, workbook):
     destination_folder = f'{base_folder}\{chara_name}'
     destination_folder = destination_folder.replace(" ", "")
 
-    time.sleep(0.5)
+    time.sleep(2)
     return destination_folder
 
     
@@ -55,7 +55,7 @@ def create_folder(folder_path):
 
 
 # move the file to the destination folder and rename it if necessary
-def move_and_rename_file(src_file, chara_name, dest_folder):
+def move_and_rename_file(src_file, dest_folder):
     
     time.sleep(0.5)
     # Get the original file name and extension
@@ -77,7 +77,6 @@ def move_and_rename_file(src_file, chara_name, dest_folder):
         print(dest_path)
         shutil.move(src_file, dest_path)
         logging.info(f"Moved file from {src_file} to {dest_path}")
-        
     except Exception as e:
         logging.error(f"Error moving file: {e}")
         logging.info(f"Failed to move file from {src_file} to {dest_path}")
@@ -85,7 +84,7 @@ def move_and_rename_file(src_file, chara_name, dest_folder):
 
 # extract, adjust words to make folder path
 # Move To folder if mp4 video already exists
-def move_to_folder(dest_directory, charaname, extension):
+def move_to_folder(dest_directory, charaname, extension, sheet_name):
     
     dest_directory = f"{dest_directory}\\"
     
@@ -103,22 +102,26 @@ def move_to_folder(dest_directory, charaname, extension):
                 print(f"charaname: {charaname} in {chk_name}")
 
                 # check if files name ends with mp4 includes characters name in csv name
-                if charaname in chk_name:
+                # リア (folder name) ⇒ ヴィクトリア.mp4 can be matched now...
+                if charaname in chk_name and sheet_name in dest_directory:
                     print(f"Found file: {filename}")
                     source_file = f'{source_fold}\{filename}'
                     
                     filename = common_tool.name_converter(source_fold, filename)
                     print(f"File name after conversion: {filename}")
+                    logging.info(f"File name after conversion: {filename}")
 
                     source_file = rf'{source_fold}{filename}' # files path where you want to move from
-                    destination_file = f'{dest_directory}\\' # To directory with character name
                         
                     # Check if the file already exists in the destination folder
                     # If it does, rename the file
-                    move_and_rename_file(source_file, charaname, destination_file)
+                    move_and_rename_file(source_file, dest_directory)
+                    # move_file_count = move_file_count + 1
             time.sleep(0.5)
+        # dict to keep track of moved files
+        # msg[sheet_name] = move_file_count
         msg = "Success"
-        
+
     except Exception as e:
         print(f"Error: {e}")
         msg = "Error"
