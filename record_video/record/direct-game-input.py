@@ -1,15 +1,60 @@
+# Direct Game Input - Advanced Windows API
+# This script uses multiple Windows API methods to send input directly to games.
+# Most effective for games that ignore regular automation.
+# Requires 'keyboard' package. The script will attempt to install it if missing.
+# Click the specific button automatically as much as you need
+
+import subprocess
+import sys
+
+required = ["keyboard"]
+missing = []
+
+print("Checking required packages...")
+for pkg in required:
+    try:
+        __import__(pkg)
+        print(f"✓ {pkg} - OK")
+    except ImportError:
+        print(f"✗ {pkg} - Missing")
+        missing.append(pkg)
+
+# Install missing packages and restart
+if missing:
+    print(f"\nMissing packages: {missing}")
+    print("Installing missing packages...")
+    
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install"] + missing)
+        print("✓ Successfully installed missing packages.")
+        print("Restarting script...")
+        
+        # Restart the script
+        subprocess.check_call([sys.executable] + sys.argv)
+        sys.exit(0)
+        
+    except subprocess.CalledProcessError as e:
+        print(f"✗ Failed to install packages: {e}")
+        print("Please install packages manually:")
+        for pkg in missing:
+            print(f"  pip install {pkg}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"✗ Unexpected error during installation: {e}")
+        sys.exit(1)
+else:
+    print("All required packages are available.\n")
+
 import time
 import keyboard
 import win32gui
 import win32con
 import win32api
-import win32process
 import ctypes
 from ctypes import wintypes
 import threading
 from datetime import datetime
 
-# Additional Windows API functions
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
@@ -186,9 +231,13 @@ class DirectGameInput:
                 
                 if self.try_all_methods():
                     self.action_count += 1
+                    print("Currently running... Press 'ESC' to stop.")
                     print(f"[{current_time}] Action #{self.action_count} - Success")
                 else:
                     print(f"[{current_time}] All methods failed")
+                    print("Exiting due to repeated failures.")
+                    time.sleep(5)
+                    exit(1)
                 
                 time.sleep(self.interval)
                 
@@ -253,19 +302,19 @@ def main():
     print("Most effective for games that ignore regular automation\n")
     
     # Get game title
-    game_title = input("Enter game window title: ").strip()
+    game_title = input("Enter a word in game window title (Example: Minecraft): ").strip()
     if not game_title:
-        print("Game title required!")
+        print("You need to enter a game title. Please try again.")
         return
     
     # Get interval
     try:
-        interval = float(input("Interval in seconds (default 5): ").strip() or "5")
+        interval = float(input("Please set interval in seconds (default 5): ").strip() or "5")
     except ValueError:
         interval = 5
     
     # Choose key
-    print("\nChoose key:")
+    print("\nChoose key to press automatically:")
     print("1. Enter (default)")
     print("2. Space")
     print("3. E")
