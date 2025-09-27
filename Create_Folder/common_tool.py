@@ -19,10 +19,10 @@ def delete_path(delete_fold):
     if os.path.exists(delete_fold) or os.path.isdir(delete_fold):
         try:
             if "(" in delete_fold or ")" in delete_fold or "[" in delete_fold or "]" in delete_fold:
-                check = input(f"Folder '{delete_fold}' contains invalid characters. Do you want to delete it? (y/n): ")
-                if check.lower() == "y":
-                    shutil.rmtree(delete_fold)  # Deletes the folder and its contents
-                    logging.info(f"Folder '{delete_fold}' has been deleted.")
+                # check = input(f"Folder '{delete_fold}' contains invalid characters. Do you want to delete it? (y/n): ")
+                # if check.lower() == "y":
+                shutil.rmtree(delete_fold)  # Deletes the folder and its contents
+                logging.info(f"Folder '{delete_fold}' has been deleted.")
     
         except Exception as e:
             logging.error(f"Failed to delete '{delete_fold}': {e}")
@@ -113,47 +113,104 @@ def check_sheet_exists(sheet_name, workbook):
     return sheet_name
 
 
-# all file in each game videos folders and write to gsheet
 def listup_all_files(folder_path, sheet):
     
     print(sheet.title)
+    print("===処理開始===")
+    print("関数名: listup_all_files")
+    print("")
     sheet.clear()
     
-    # list up all files in the folder
+    # List up all files in the folder
     print(f"親フォルダパス: {folder_path}")
-    folder_names = os.listdir(folder_path)
+    
+    try:
+        folder_names = os.listdir(folder_path)
+    except OSError as e:
+        logging.error(f"Cannot access folder {folder_path}: {e}")
+        return
+    
     data_list = []
     
-    for folder_name in folder_names: # each path in folder_path
-        time.sleep(2)
-        
+    for folder_name in folder_names:  # each path in folder_path
         file_path = os.path.join(folder_path, folder_name)
-        
-        # check if file exists in each folder
-        try:
-            if not len(os.listdir(file_path)) == 0:
-                files = os.listdir(file_path)
-                
-                if files != None:
-                    for file in files:
-                        # check duration of silence
-                        if file.endswith(".mp4"):
-                            delete_if_silent(f"{file_path}\\{file}")
+        print(f"変数名: file_path, {file_path}")
 
-                        print(f"{file_path}\\{file}")
-                        data_list.append([file_path, file])
-            else:
+        # Check if it's actually a directory
+        if not os.path.isdir(file_path):
+            print(f"It's not a folder, but a file: {file_path}")
+            continue
+
+        # Check if folder has files
+        try:
+            files = os.listdir(file_path)
+            
+            if len(files) == 0:
                 print(f"No files in the folder: {file_path}")
+                continue
+                
+            # Process each file in the folder
+            for file in files:
+                image_status = "Null"
+                
+                if file.endswith(".mp4"):
+                    print(f"変数名: file, {file}")
+                    
+                    # Create unique thumbnail filename
+                    mp4_file_path = os.path.join(file_path, file)
+                    thumbnail_name = f"thumbnail_{folder_name}_{file[:-4]}.jpg"
+                    
+                    try:
+                        # Extract frame at 5 seconds
+                        result = subprocess.run([
+                            'ffmpeg',
+                            '-i', mp4_file_path,
+                            '-ss', '00:00:05',
+                            '-vframes', '1',
+                            '-y',  # Overwrite output files
+                            thumbnail_name
+                        ], capture_output=True, text=True, timeout=30)
+                        
+                        if result.returncode == 0:
+                            image_status = thumbnail_name
+                            logging.info(f"Thumbnail created: {thumbnail_name}")
+                        else:
+                            logging.error(f"FFmpeg failed for {file}: {result.stderr}")
+                            image_status = "FFmpeg_Error"
+                            
+                    except subprocess.TimeoutExpired:
+                        logging.error(f"FFmpeg timeout for {file}")
+                        image_status = "Timeout"
+                    except Exception as e:
+                        logging.error(f"Error extracting image from {file}: {e}")
+                        image_status = "Error"
+
+                print(f"{file_path}\\{file}")
+                data_list.append([file_path, file, image_status])
+                
+            # Small delay to avoid overwhelming the system
+            time.sleep(0.5)
+            
+        except OSError as e:
+            logging.error(f"Error accessing {file_path}: {e}")
+            continue
+    
+    # Write to Google Spreadsheet
+    if data_list:
+        df = pd.DataFrame(data_list, columns=["folder", "file_name", "image"])
+        logging.info(f"Writing {len(data_list)} records to Google spreadsheet")
+        
+        try:
+            # Update sheet with headers and data
+            sheet.update([df.columns.values.tolist()] + df.values.tolist())
+            logging.info(f"Successfully wrote data to {sheet.title}")
         except Exception as e:
-            print(f"Error: {e}")
-            print(f"It's not a folder, but a file {file_path}")
-    # write down into a google spreadsheet
-    df = pd.DataFrame(data_list, columns=["folder", "file_name"])
-    
-    logging.info(f"Write down into a sheet in Google spreadsheet: {df}")
-    sheet.update([df.columns.values.tolist()] + df.values.tolist())
-    logging.info(f"List up all files in {folder_path} and write to {sheet.title} in google spreadsheet.")
-    
+            logging.error(f"Failed to write to Google Sheet: {e}")
+    else:
+        logging.warning(f"No data found in {folder_path}")
+        
+    logging.info(f"Completed listing files in {folder_path}")
+
 
 def get_silence_duration(video_path):
     cmd = [

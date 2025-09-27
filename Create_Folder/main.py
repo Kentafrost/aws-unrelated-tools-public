@@ -30,14 +30,11 @@ def main(sheet_name, workbook, remote_chk):
     data = sheet.get_all_values()
     df = pd.DataFrame(data)
     extension = ".mp4"
-    
-    move_file_count = 0
 
     for index, row in df.iterrows():
         if remote_chk == "y":
             base_path = base_path.replace("D:", "Z:")
-            
-        if not row[1] == "BasePath":  
+        if not row[1] == "BasePath":
 
             chara_name = row[0].replace(" ","")
             base_path = row[1]

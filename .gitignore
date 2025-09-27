@@ -2,6 +2,9 @@
 log/
 __pycache__/
 
+# Exclude all JSON files in every folder
+**/*.json
+
 # Ignore sensitive credential and authentication files
 *credentials.json
 *token.pickle
@@ -63,4 +66,10 @@ plan.txt
 secret_path.py
 # VS Code workspace settings
 .vscode/
-
+**/.json
+**/node_modules/**
+**/*rakuten*.csv
+**/memo.txt
+**/*.webp
+**/*.png
+**/*.pyc
