@@ -5,116 +5,210 @@ const path = require('path');
 // Disable SSL verification warnings (for development only)
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
-const url = "https://rakuten_webservice-rakuten-marketplace-product-search-v1.p.rapidapi.com/services/api/Product/Search/20170426";
-
-// Add query parameters for the search
-const params = {
-    keyword: 'モデルガン',  // Model gun keyword
-    format: 'json',
-    elements: 'productName,productPrice,productUrl,imageUrl',
-    page: '1',
-    hits: '30'  // Number of results
-};
-
-const headers = {
-    "x-rapidapi-key": "b36cb36eedmsh0785bc594a50608p17069djsn6f651a5811e5",
-    "x-rapidapi-host": "rakuten_webservice-rakuten-marketplace-product-search-v1.p.rapidapi.com"
-};
-
-// Configure axios with retry-like behavior and timeout
-const axiosConfig = {
-    timeout: 30000,
-    headers: headers,
-    params: params,
-    httpsAgent: new (require('https')).Agent({
-        rejectUnauthorized: false  // Bypass SSL verification
-    })
-};
-
+// ディレクトリ設定
 const currentDir = __dirname;
 const resultsDir = path.join(currentDir, 'results');
-const csvPath = path.join(resultsDir, 'rakuten_products.csv');
 
-// Create results directory if it doesn't exist
+// RapidAPI経由での楽天API呼び出し設定
+const ApiUrl = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601";
+
+// jsonファイルから設定を読み込む
+const searchParams = JSON.parse(fs.readFileSync(path.join(currentDir, 'search_param.json'), 'utf-8'));
+const applicationId = searchParams.applicationId;
+const rapidApiHeaders = {
+    "x-rapidapi-key": searchParams["x-rapidapi-key"],
+    "x-rapidapi-host": searchParams["x-rapidapi-host"]
+};
+
+// 楽天APIで取得できるページ, キーワード設定
+const number_hits = searchParams.number_hits;
+const page = searchParams.page;
+const max_page = searchParams.max_page;
+const keywords = searchParams.keywords;
+const requirements = searchParams.requirements || {};
+
+// 結果ディレクトリを作成
 if (!fs.existsSync(resultsDir)) {
     fs.mkdirSync(resultsDir, { recursive: true });
 }
 
-function listUp(result) {
+// CSVに保存する関数
+function saveToCSV(items, currentPage, csvPath) {
+
+    // CSVファイルの初期化
+    fs.writeFile(csvPath, '', (err) => {
+        if (err) {
+            console.error('Error creating file:', err);
+        } else {
+            console.log('File created successfully');
+        }
+    });
+
+    // CSVファイルに書き込み
+    const headers = 'Name,Catchcopy,Availability,Price,URL,Shop,ShopURL,Page\n';
+    fs.writeFileSync(csvPath, headers, 'utf-8');
+
     const csvData = [];
-    console.log(result.products || []);
+    console.log(`📦 ${items.length}件の商品が見つかりました (ページ ${currentPage}):`);
+    
+    items.forEach((item, index) => {
+        const info = item.Item || item;
+        const name = info.itemName || info.productName || '-';
+        const catchcopy = info.catchcopy || '-';
+        const availability = info.availability || '-';
+        const price = info.itemPrice || info.productPrice || '-';
+        const url = info.itemUrl || info.productUrl || '-';
+        const shopName = info.shopName || '-';
+        const shopUrl = info.shopUrl || '-';
 
-    // Display first few products
-    const products = result.products || [];
-    for (let i = 0; i < Math.min(3, products.length); i++) {
-        const product = products[i];
-        const name = product.productName || 'N/A';
-        const price = product.productPrice || 'N/A';
-        const url = product.productUrl || 'N/A';
-        
-        csvData.push([name, price, url]);
-    }
+        // if requirements is matched then skip the item to write
+        try {
+            if (requirements.cost[0].min < price && price < requirements.cost[1].max &&
+                requirements.makers.some(maker => name.includes(maker))) {
 
-    // Write to CSV file
-    const csvContent = 'Name,Price,URL\n' + 
-        csvData.map(row => 
-            row.map(field => `"${String(field).replace(/"/g, '""')}"`)
-               .join(',')
-        ).join('\n');
+                console.log(`❌ ${name} - ¥${price} は要件を満たしていません`);
+                return;
+            }
+        } catch (error) {
+            console.log("要件のチェック項目が書かれていません。\nすべての商品を保存します。");
+        }
 
-    fs.writeFileSync(csvPath, csvContent, 'utf-8');
-    console.log(`✅ ${csvData.length} products listed up successfully!`);
+        const row = `${name},${catchcopy},${availability},${price},${url},${shopName},${shopUrl},${currentPage}\n`;
+
+        // if data doesn't exist, write in write mode
+        if (!fs.existsSync(csvPath) || fs.statSync(csvPath).size === 0) {
+            fs.writeFileSync(csvPath, row, 'utf-8');
+        } else {
+            fs.appendFileSync(csvPath, row, 'utf-8');
+        }
+
+        console.log(`${index + 1}. ${name} - ¥${price} - ${shopName}`);
+    });
+
+    console.log(`✅ ${currentPage}ページ目 ${csvData.length}件の商品をCSVに保存しました: ${csvPath}`);
 }
 
-// Method 1: Try with SSL verification bypassed
-async function fetchRakutenData() {
+
+// // 方法1: RapidAPI経由で楽天商品検索
+async function fetchItemsViaRapidAPI(keyword, csvPath) {
     try {
-        const response = await axios.get(url, axiosConfig);
-        console.log("✅ SSL verification bypassed - Response received!");
+        console.log('🛍️ RapidAPI経由で楽天商品を検索中...');
         
-        if (response.status === 200) {
-            listUp(response.data);
+        const params = {
+            keyword: keyword,
+            format: 'json',
+            page: page,
+            hits: number_hits
+        };
+        
+        const response = await axios.get(ApiUrl, {
+            headers: rapidApiHeaders,
+            params: params,
+            timeout: 30000
+        });
+
+        console.log(`✅ API呼び出し成功 (ステータス: ${response.status})`);
+        
+        if (response.data && response.data.products) {
+            saveToCSV(response.data.Items);
+        } else if (response.data && response.data.Items.Item) {
+            saveToCSV(response.data.Items);
         } else {
-            console.log("Response Text:", response.data);
+            console.log('⚠️ 商品データが見つかりませんでした');
+            console.log('レスポンス:', JSON.stringify(response.data, null, 2));
         }
         
     } catch (error) {
-        console.log(`❌ Request failed: ${error.message}`);
+        console.error('❌ RapidAPI呼び出しエラー:', error.message);
+        if (error.response) {
+            console.log('ステータス:', error.response.status);
+            console.log('レスポンス:', error.response.data);
+        }
+        throw error;
+    }
+}
+
+// 方法2: 直接楽天API呼び出し
+async function fetchItemsDirectAPI(keyword, csvPath) {
+    try {
+        console.log('🛍️ 直接楽天APIで商品を検索中...');
         
-        // Method 2: Try with different URL (direct RapidAPI endpoint)
-        try {
-            console.log("\n🔄 Trying alternative approach...");
-            const altUrl = "https://rakuten-web-service.p.rapidapi.com/services/api/Product/Search/20170426";
-            const altHeaders = {
-                "X-RapidAPI-Key": "b36cb36eedmsh0785bc594a50608p17069djsn6f651a5811e5",
-                "X-RapidAPI-Host": "rakuten-web-service.p.rapidapi.com"
+        for (let currentPage = 1; currentPage <= max_page; currentPage++) {
+            console.log(`🔄 ページ ${currentPage} を取得中...`);
+
+            const params = {
+                applicationId: applicationId,
+                keyword: keyword,
+                format: 'json',
+                page: currentPage,
+                hits: number_hits
             };
             
-            const altConfig = {
-                ...axiosConfig,
-                headers: altHeaders
-            };
+            const response = await axios.get(ApiUrl, {
+                params: params,
+                timeout: 30000
+            });
+            console.log(`✅ 直接API呼び出し成功 (ステータス: ${response.status})`);
             
-            const response = await axios.get(altUrl, altConfig);
-            console.log("✅ Alternative URL worked!");
-            console.log("Status Code:", response.status);
-            
-            if (response.status === 200) {
-                listUp(response.data);
+            if (response.data && response.data.Items) {
+                saveToCSV(response.data.Items, currentPage, csvPath);
             } else {
-                console.log("Response Text:", response.data);
+                console.log('⚠️ 商品データが見つかりませんでした');
+                console.log('レスポンス:', JSON.stringify(response.data, null, 2));
             }
+            // sleep for 10 seconds
+            await new Promise(resolve => setTimeout(resolve, 10000));
+        }
             
+    } catch (error) {
+        console.error('❌ 直接API呼び出しエラー:', error.message);
+        if (error.response) {
+            console.log('ステータス:', error.response.status);
+            console.log('レスポンス:', error.response.data);
+        }
+        throw error;
+    }
+}
+
+ // メイン実行関数
+async function fetchItems(keyword, csvPath) {
+    console.log(`🔍 キーワード "${keyword}" で商品検索を開始...`);
+    
+    // RapidAPIで試行
+    try {
+        await fetchItemsViaRapidAPI(keyword, csvPath);
+    } catch (error) {
+        console.log('\n🔄 RapidAPIが失敗したので、直接APIを試行...');
+        
+        try {
+            await fetchItemsDirectAPI(keyword, csvPath);
         } catch (error2) {
-            console.log(`❌ Alternative method also failed: ${error2.message}`);
-            console.log("\n💡 Solutions to try:");
-            console.log("1. Check if your RapidAPI subscription is active");
-            console.log("2. Verify the API endpoint URL in RapidAPI dashboard");
-            console.log("3. Update your API key if needed");
-            console.log("4. Try using curl or Postman to test the endpoint directly");
+            console.log('\n❌ 両方のAPI呼び出しが失敗しました');
+            console.log('\n💡 解決方法:');
+            console.log('1. インターネット接続を確認');
+            console.log('2. RapidAPIキーが有効か確認');
+            console.log('3. 楽天アプリケーションIDが有効か確認');
+            console.log('4. 検索キーワードを変更してみる');
         }
     }
 }
 
-// Run the script
-fetchRakutenData();
+
+// メイン実行関数
+async function main() {
+    for (const keyword of keywords) {
+        const csvPath = path.join(resultsDir, `rakuten_products_${keyword}.csv`);
+        
+        try {
+            await fetchItems(keyword, csvPath);
+        } catch (error) {
+            console.error(`❌ ${keyword} の商品検索中にエラーが発生しました:`, error.message);
+        }
+    }
+}
+
+// スクリプト実行
+main().catch(error => {
+    console.error('❌ アプリケーションエラー:', error);
+    process.exit(1);
+});
