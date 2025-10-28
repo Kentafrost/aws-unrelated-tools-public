@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Automation Scripts in Python
 
 ## Overview(概略)
