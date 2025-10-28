@@ -1,2 +1,0 @@
-flg_filepath=y
-remote_chk=n
