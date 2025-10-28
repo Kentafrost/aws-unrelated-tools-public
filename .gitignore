@@ -1,0 +1,88 @@
+# Ignore Python compiled files
+log/
+__pycache__/
+
+# Exclude all JSON files in every folder
+**/*.json
+
+# Ignore sensitive credential and authentication files
+*credentials.json
+*token.pickle
+*OAuth_credentials.json
+**/*credentials.json
+**/*token.pickle
+**/*OAuth_credentials.json
+**/credentials.json
+**/token.pickle
+**/OAuth_credentials.json
+
+# AWS credentials
+.aws/
+**/aws/credentials
+**/aws/config
+**/.aws/
+*aws_credentials*
+*aws_secret*
+*aws_access*
+
+# Google credentials
+*service_account*.json
+*client_secret*.json
+*google_credentials*.json
+
+# API keys and tokens
+*api_key*
+*secret_key*
+*access_token*
+*refresh_token*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Environment files
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.*
+
+**/venv/
+
+# Config files that might contain secrets
+config.ini
+config.cfg
+settings.json
+**/config/*.json
+**/config/*.ini
+**/config/*.cfg
+**/**/old/**
+**/search_words.py
+**/*.csv
+
+# Ignore image or video folders
+web-sites-list/results/
+plan.txt
+secret_path.py
+ascii_art.py
+# VS Code workspace settings
+.vscode/
+**/.json
+**/node_modules/**
+**/*rakuten*.csv
+**/memo.txt
+**/*.webp
+**/*.png
+**/*.pyc
+**/ascii/**.txt
+**/diary/**
+
+*.mp4
+*.mp3
+*.avi
+*.mov
+*.csv
+*.log
+*.json
+*.sqlite
+**/*.pyc

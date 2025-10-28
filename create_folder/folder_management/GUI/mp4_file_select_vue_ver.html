@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select files with specific tags - Vue Version</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 20px;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        select, input[type="text"], button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            cursor: pointer;
+            color: white;
+        }
+        .btn-primary { background-color: #007bff; }
+        .btn-success { background-color: #28a745; }
+        .btn-info { background-color: #17a2b8; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-warning { background-color: #ffc107; color: black; }
+        #file-list {
+            border: 1px solid #ddd;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="file-manager container">
+    <h3>🎬 MP4 File Manager</h3>
+    
+    <div class="controls">
+        <label>🏷️ タグを選択:</label>
+        <select v-model="selectedTag" id="tag-item" name="tag">
+            <option value="">🗂️ すべてのファイル (All Files)</option>
+            <option v-for="tag in tags" :key="tag" :value="tag">{{ tag }}</option>
+        </select>
+
+        <input v-model="searchQuery" id="search-input" placeholder="🔍 ファイル名で検索...">
+
+        <button @click="selectfolder" class="btn-primary">📁 フォルダを選択</button>
+        <button @click="refreshData" class="btn-success">🔄 データを再読込</button>
+        <button @click="json_tag_selection" class="btn-info">🏷️ タグ更新</button>
+        <button @click="debugEnvironment" class="btn-secondary">🐛 デバッグ</button>
+        <button @click="checkFileExistence" class="btn-warning">📄 ファイル確認</button>
+    </div>
+
+    <div id="selected-folder-path">
+        選択されたフォルダがここに表示されます (Selected folder will be displayed here)
+    </div>
+
+    <div id="file-list">
+        <div v-if="loading">📊 データを読み込み中... (Loading data...)</div>
+        <div v-else-if="filteredFiles.length === 0">📝 ファイルが見つかりません (No files found)</div>
+        <div v-else>
+            <div v-for="file in filteredFiles" :key="file.name" style="padding: 5px; border-bottom: 1px solid #eee;">
+                <strong>📄 {{ file.name }}</strong>
+                <div v-if="file.tags && file.tags.length > 0" style="margin-top: 3px;">
+                    <span v-for="tag in file.tags" :key="tag" 
+                          style="background-color: #e9ecef; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 0.8em;">
+                        🏷️ {{ tag }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="javascript/retrieve_folder_data.js"></script>
+    <script src="javascript/folder_name_to_json.js"></script>
+    
+    <script>
+        // Vue.jsインスタンスを作成
+        new Vue({
+            el: '.file-manager',
+            data: {
+                selectedTag: '',
+                searchQuery: '',
+                tags: [],
+                files: [],
+                filteredFiles: [],
+                loading: false
+            },
+            computed: {
+                // フィルタリングされたファイルリスト
+                filteredFiles() {
+                    let filtered = this.files;
+                    
+                    // タグでフィルタリング
+                    if (this.selectedTag) {
+                        filtered = filtered.filter(file => 
+                            file.tags && file.tags.includes(this.selectedTag)
+                        );
+                    }
+                    
+                    // 検索クエリでフィルタリング
+                    if (this.searchQuery) {
+                        filtered = filtered.filter(file => 
+                            file.name.toLowerCase().includes(this.searchQuery.toLowerCase())
+                        );
+                    }
+                    
+                    return filtered;
+                }
+            },
+            methods: {
+                // フォルダ選択
+                selectfolder() {
+                    console.log('フォルダを選択');
+                    if (typeof window.selectfolder === 'function') {
+                        window.selectfolder();
+                    }
+                },
+                
+                // データ再読込
+                refreshData() {
+                    console.log('データを再読込');
+                    this.loading = true;
+                    // 既存の関数があれば呼び出し
+                    if (typeof window.refreshData === 'function') {
+                        window.refreshData();
+                    }
+                    setTimeout(() => {
+                        this.loading = false;
+                    }, 1000);
+                },
+                
+                // タグ更新
+                json_tag_selection() {
+                    console.log('タグ更新');
+                    // 正しい関数名で呼び出し
+                    if (typeof window.json_tag_selection === 'function') {
+                        window.json_tag_selection();
+                        alert('タグが更新されました');
+                    } else {
+                        console.log('json_tag_selection関数が見つかりません');
+                    }
+                },
+                
+                // デバッグ
+                debugEnvironment() {
+                    if (typeof window.debugEnvironment === 'function') {
+                        window.debugEnvironment();
+                    } else {
+                        console.log('debugEnvironment関数が見つかりません');
+                    }
+                },
+                
+                // ファイル確認
+                checkFileExistence() {
+                    console.log('ファイル確認');
+                    // 既存のfile_data_to_json関数があれば呼び出し
+                    if (typeof window.checkFileExistence === 'function') {
+                        window.checkFileExistence();
+                        alert('ファイル確認が完了しました');
+                    } else {
+                        console.log('checkFileExistence関数が見つかりません');
+                    }
+                },                
+            },
+            
+            mounted() {
+                // コンポーネントがマウントされた時に実行
+                console.log('Vue.js コンポーネントがマウントされました');
+                
+                // 既存の初期化関数があれば呼び出し
+                if (typeof window.json_data_list === 'function') {
+                    window.json_data_list();
+                }
+                if (typeof window.initializeEventListeners === 'function') {
+                    window.initializeEventListeners();
+                }
+                if (typeof window.json_tag_selection === 'function') {
+                    window.json_tag_selection();    
+                }
+                if (typeof window.file_data_to_json === 'function') {
+                    window.file_data_to_json();
+                } else {
+                    // 既存の関数がない場合はサンプルデータを読み込む
+                    this.loadData();
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
+
